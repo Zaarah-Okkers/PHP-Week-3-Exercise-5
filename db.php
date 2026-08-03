@@ -1,12 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-</head>
-<body>
-    <?php
+<?php
 /**
  * Shared database connection, included by every other page in the
  * final project. Creates the database/table on first run so the whole
@@ -36,5 +28,3 @@ $conn->query("
     )
 ");
 ?>
-</body>
-</html>
