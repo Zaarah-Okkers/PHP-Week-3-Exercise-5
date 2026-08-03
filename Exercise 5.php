@@ -11,15 +11,15 @@
  *   ?page=task2  $_SERVER details
  *   ?page=users  Final project: create/list/edit/delete users
  *                (this also covers Tasks 3 & 4 — DB connection,
- *                 table creation, and CRUD — since the users
- *                 table is created automatically below and every
- *                 create/update/delete goes through prepared
- *                 statements against it)
+ *                 table creation, and CRUD — since both the
+ *                 database and the users table are created
+ *                 automatically below, and every create/update/
+ *                 delete goes through prepared statements)
  *
- * Setup: update the four DB_* constants, create the database
- * itself (e.g. `CREATE DATABASE exercise5_db;`), then run:
- *   php -S localhost:8000
- * and visit http://localhost:8000/exercise5.php
+ * Setup: update the four DB_* constants below if needed (defaults
+ * match a stock XAMPP install), then just open this file in the
+ * browser. The database, table, and sample record are created
+ * automatically on first load.
  * ---------------------------------------------------------------
  */
 
@@ -36,10 +36,16 @@ function get_db_connection(): mysqli
     static $conn = null;
 
     if ($conn === null) {
-        $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+        // Connect WITHOUT selecting a database first, so we can create
+        // it if it doesn't exist yet (avoids "Unknown database" errors
+        // on a fresh XAMPP/MySQL install).
+        $conn = new mysqli(DB_HOST, DB_USER, DB_PASS);
         if ($conn->connect_error) {
             die('Database connection failed: ' . $conn->connect_error);
         }
+
+        $conn->query('CREATE DATABASE IF NOT EXISTS ' . DB_NAME . ' CHARACTER SET utf8mb4');
+        $conn->select_db(DB_NAME);
         $conn->set_charset('utf8mb4');
     }
 
@@ -128,7 +134,7 @@ function delete_user(mysqli $conn, int $id): bool
 }
 
 // ---------------------------------------------------------------
-// Bootstrap: connect + make sure the table/sample row exist.
+// Bootstrap: connect + make sure the database/table/sample row exist.
 // ---------------------------------------------------------------
 $conn = get_db_connection();
 ensure_users_table_exists($conn);
@@ -212,61 +218,277 @@ $editingUser = ($page === 'edit' && isset($_GET['id'])) ? get_user($conn, (int) 
     <meta charset="UTF-8">
     <title>Exercise 5 - Super Globals and PHP/SQL</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 2rem; max-width: 700px; }
-        nav a { margin-right: 1rem; }
-        table { border-collapse: collapse; width: 100%; margin-top: 1.5rem; }
-        th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
-        th { background: #f2f2f2; }
-        .feedback { color: #0a6b1c; }
-        .actions a { margin-right: 0.75rem; }
-        section { margin-top: 2rem; }
+        :root {
+            --bg: #f5f6fa;
+            --surface: #ffffff;
+            --border: #e2e5eb;
+            --text: #1f2430;
+            --text-muted: #6b7280;
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --danger: #dc2626;
+            --danger-hover: #b91c1c;
+            --success-bg: #ecfdf3;
+            --success-text: #15803d;
+            --radius: 10px;
+            --shadow: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 2.5rem 1.5rem;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 760px;
+            margin: 0 auto;
+        }
+
+        nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 0.5rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+            padding: 0.5rem 0.9rem;
+            border-radius: 8px;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        nav a:hover {
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        nav a.active {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 1.75rem;
+            margin-bottom: 1.75rem;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+        }
+
+        h2 {
+            font-size: 1.05rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-top: 0;
+        }
+
+        .form-group {
+            margin-bottom: 1.1rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.35rem;
+            color: var(--text-muted);
+        }
+
+        input[type="text"],
+        input[type="email"],
+        textarea {
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            font-size: 0.95rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--text);
+            font-family: inherit;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+            background: var(--surface);
+        }
+
+        textarea { resize: vertical; }
+
+        .btn {
+            display: inline-block;
+            border: none;
+            border-radius: 8px;
+            padding: 0.6rem 1.1rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            color: #fff;
+            background: var(--primary);
+            transition: background 0.15s ease;
+        }
+
+        .btn:hover { background: var(--primary-hover); }
+
+        .btn-link {
+            background: none;
+            color: var(--text-muted);
+            padding: 0.6rem 0.4rem;
+        }
+
+        .btn-link:hover {
+            background: none;
+            color: var(--text);
+            text-decoration: underline;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            border-bottom: 1px solid var(--border);
+            padding: 0.65rem 0.75rem;
+            text-align: left;
+        }
+
+        th {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            font-weight: 600;
+        }
+
+        tbody tr:hover { background: var(--bg); }
+
+        .actions a {
+            margin-right: 0.75rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .actions a.edit { color: var(--primary); }
+        .actions a.delete { color: var(--danger); }
+        .actions a:hover { text-decoration: underline; }
+
+        .feedback {
+            background: var(--success-bg);
+            color: var(--success-text);
+            border-radius: 8px;
+            padding: 0.6rem 0.9rem;
+            font-size: 0.9rem;
+            margin-bottom: 1.25rem;
+        }
+
+        ul.server-details {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        ul.server-details li {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        ul.server-details li:last-child { border-bottom: none; }
+        ul.server-details strong { color: var(--text-muted); font-weight: 500; }
     </style>
 </head>
 <body>
-    <nav>
-        <a href="?page=home">Home</a>
-        <a href="?page=task1">Task 1: $_REQUEST Form</a>
-        <a href="?page=task2">Task 2: $_SERVER Details</a>
-        <a href="?page=users">Tasks 3-5: Users (DB + CRUD)</a>
-    </nav>
-    <hr>
+    <div class="container">
+        <nav>
+            <a href="?page=home" class="<?= $page === 'home' ? 'active' : '' ?>">Home</a>
+            <a href="?page=task1" class="<?= $page === 'task1' ? 'active' : '' ?>">Task 1: $_REQUEST Form</a>
+            <a href="?page=task2" class="<?= $page === 'task2' ? 'active' : '' ?>">Task 2: $_SERVER Details</a>
+            <a href="?page=users" class="<?= in_array($page, ['users', 'edit']) ? 'active' : '' ?>">Tasks 3-5: Users (DB + CRUD)</a>
+        </nav>
 
     <?php if ($page === 'home'): ?>
 
-        <h1>Exercise 5 &mdash; Super Globals and Integrating PHP with SQL</h1>
-        <p>Use the navigation above to try each task. Tasks 3, 4, and 5 are
-           combined under "Users" since they all operate on the same
-           database table.</p>
+        <div class="card">
+            <h1>Exercise 5 &mdash; Super Globals and Integrating PHP with SQL</h1>
+            <p class="subtitle">Use the navigation above to try each task. Tasks 3, 4, and 5 are
+               combined under "Users" since they all operate on the same
+               database table.</p>
+        </div>
 
     <?php elseif ($page === 'task1'): ?>
 
-        <h1>Task 1: Handling Form Data with $_REQUEST</h1>
-        <form action="?page=task1" method="POST">
-            <input type="hidden" name="submitted" value="1">
-            <label for="name">Name:</label><br>
-            <input type="text" id="name" name="name" required><br><br>
-
-            <label for="email">Email:</label><br>
-            <input type="email" id="email" name="email" required><br><br>
-
-            <label for="message">Message:</label><br>
-            <textarea id="message" name="message" rows="3" cols="40" required></textarea><br><br>
-
-            <button type="submit">Submit</button>
-        </form>
+        <div class="card">
+            <h1>Task 1: Handling Form Data with $_REQUEST</h1>
+            <form action="?page=task1" method="POST">
+                <input type="hidden" name="submitted" value="1">
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="message">Message</label>
+                    <textarea id="message" name="message" rows="3" required></textarea>
+                </div>
+                <button type="submit" class="btn">Submit</button>
+            </form>
+        </div>
 
         <?php if ($task1Output !== ''): ?>
-            <p><strong>Result:</strong> <?= $task1Output /* already escaped above */ ?></p>
+            <div class="card">
+                <strong>Result:</strong> <?= $task1Output /* already escaped above */ ?>
+            </div>
         <?php endif; ?>
 
     <?php elseif ($page === 'task2'): ?>
 
-        <h1>Task 2: Server Details with $_SERVER</h1>
-        <ul>
-            <li><strong>Host Name:</strong> <?= htmlspecialchars($hostName) ?></li>
-            <li><strong>PHP Version:</strong> <?= htmlspecialchars($phpVersion) ?></li>
-            <li><strong>Request Method:</strong> <?= htmlspecialchars($requestMethod) ?></li>
-        </ul>
+        <div class="card">
+            <h1>Task 2: Server Details with $_SERVER</h1>
+            <ul class="server-details">
+                <li><strong>Host Name</strong> <span><?= htmlspecialchars($hostName) ?></span></li>
+                <li><strong>PHP Version</strong> <span><?= htmlspecialchars($phpVersion) ?></span></li>
+                <li><strong>Request Method</strong> <span><?= htmlspecialchars($requestMethod) ?></span></li>
+            </ul>
+        </div>
 
     <?php elseif ($page === 'users'): ?>
 
@@ -276,75 +498,86 @@ $editingUser = ($page === 'edit' && isset($_GET['id'])) ? get_user($conn, (int) 
             <p class="feedback"><?= htmlspecialchars($feedback) ?></p>
         <?php endif; ?>
 
-        <h2>Add a New Record</h2>
-        <form action="?page=users" method="POST">
-            <input type="hidden" name="action" value="create_user">
+        <div class="card">
+            <h2>Add a New Record</h2>
+            <form action="?page=users" method="POST">
+                <input type="hidden" name="action" value="create_user">
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="message">Message</label>
+                    <textarea id="message" name="message" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn">Save</button>
+            </form>
+        </div>
 
-            <label for="name">Name:</label><br>
-            <input type="text" id="name" name="name" required><br><br>
-
-            <label for="email">Email:</label><br>
-            <input type="email" id="email" name="email" required><br><br>
-
-            <label for="message">Message:</label><br>
-            <textarea id="message" name="message" rows="3" cols="40"></textarea><br><br>
-
-            <button type="submit">Save</button>
-        </form>
-
-        <h2>All Records</h2>
-        <?php if (empty($users)): ?>
-            <p>No records yet.</p>
-        <?php else: ?>
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th><th>Name</th><th>Email</th><th>Message</th><th>Created At</th><th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($users as $user): ?>
+        <div class="card">
+            <h2>All Records</h2>
+            <?php if (empty($users)): ?>
+                <p class="subtitle">No records yet.</p>
+            <?php else: ?>
+                <table>
+                    <thead>
                         <tr>
-                            <td><?= (int) $user['id'] ?></td>
-                            <td><?= htmlspecialchars($user['name']) ?></td>
-                            <td><?= htmlspecialchars($user['email']) ?></td>
-                            <td><?= htmlspecialchars($user['message']) ?></td>
-                            <td><?= htmlspecialchars($user['created_at']) ?></td>
-                            <td class="actions">
-                                <a href="?page=edit&id=<?= (int) $user['id'] ?>">Edit</a>
-                                <a href="?page=delete&id=<?= (int) $user['id'] ?>"
-                                   onclick="return confirm('Delete this record?');">Delete</a>
-                            </td>
+                            <th>ID</th><th>Name</th><th>Email</th><th>Message</th><th>Created At</th><th>Actions</th>
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php endif; ?>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($users as $user): ?>
+                            <tr>
+                                <td><?= (int) $user['id'] ?></td>
+                                <td><?= htmlspecialchars($user['name']) ?></td>
+                                <td><?= htmlspecialchars($user['email']) ?></td>
+                                <td><?= htmlspecialchars($user['message']) ?></td>
+                                <td><?= htmlspecialchars($user['created_at']) ?></td>
+                                <td class="actions">
+                                    <a class="edit" href="?page=edit&id=<?= (int) $user['id'] ?>">Edit</a>
+                                    <a class="delete" href="?page=delete&id=<?= (int) $user['id'] ?>"
+                                       onclick="return confirm('Delete this record?');">Delete</a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
 
     <?php elseif ($page === 'edit'): ?>
 
-        <h1>Edit Record</h1>
-        <?php if (!$editingUser): ?>
-            <p>Record not found. <a href="?page=users">Back to list</a></p>
-        <?php else: ?>
-            <form action="?page=users" method="POST">
-                <input type="hidden" name="action" value="update_user">
-                <input type="hidden" name="id" value="<?= (int) $editingUser['id'] ?>">
-
-                <label for="name">Name:</label><br>
-                <input type="text" id="name" name="name" value="<?= htmlspecialchars($editingUser['name']) ?>" required><br><br>
-
-                <label for="email">Email:</label><br>
-                <input type="email" id="email" name="email" value="<?= htmlspecialchars($editingUser['email']) ?>" required><br><br>
-
-                <label for="message">Message:</label><br>
-                <textarea id="message" name="message" rows="3" cols="40"><?= htmlspecialchars($editingUser['message'] ?? '') ?></textarea><br><br>
-
-                <button type="submit">Update</button>
-                <a href="?page=users">Cancel</a>
-            </form>
-        <?php endif; ?>
+        <div class="card">
+            <h1>Edit Record</h1>
+            <?php if (!$editingUser): ?>
+                <p class="subtitle">Record not found. <a href="?page=users">Back to list</a></p>
+            <?php else: ?>
+                <form action="?page=users" method="POST">
+                    <input type="hidden" name="action" value="update_user">
+                    <input type="hidden" name="id" value="<?= (int) $editingUser['id'] ?>">
+                    <div class="form-group">
+                        <label for="name">Name</label>
+                        <input type="text" id="name" name="name" value="<?= htmlspecialchars($editingUser['name']) ?>" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" value="<?= htmlspecialchars($editingUser['email']) ?>" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="message">Message</label>
+                        <textarea id="message" name="message" rows="3"><?= htmlspecialchars($editingUser['message'] ?? '') ?></textarea>
+                    </div>
+                    <button type="submit" class="btn">Update</button>
+                    <a href="?page=users" class="btn btn-link">Cancel</a>
+                </form>
+            <?php endif; ?>
+        </div>
 
     <?php endif; ?>
+    </div>
 </body>
 </html>
